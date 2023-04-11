@@ -34,7 +34,7 @@ func main() {
 			if info.IsDir() {
 				return nil // Ignorar las carpetas
 			}
-			err = backupFile(path, backupFolder)
+			err = BackupFile(path, backupFolder)
 			if err != nil {
 				fmt.Println("Error al hacer backup del archivo", path, ":", err)
 				return err
@@ -51,7 +51,7 @@ func main() {
 	if len(os.Args) == 3 {
 		backupFolder := os.Args[1]
 		file := os.Args[2]
-		err := restoreBackup(backupFolder, file)
+		err := RestoreBackup(backupFolder, file)
 		if err != nil {
 			fmt.Println("Error al restaurar el archivo:", err)
 			return
