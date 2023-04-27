@@ -4,41 +4,68 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
 )
 
-// Definimos una constante para el tamaño máximo de cada fragmento en bytes
-const fragmentSize = 512 * 1024 * 1024
+// Constante para el tamaño máximo de cada fragmento en bytes
+const fragmentSize = 2 * 1024 * 1024
+
+func Backup(path, backupFolder string) error {
+	// Verificar info del archivo
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if fileInfo.IsDir() {
+		// Buscar archivos
+		err = filepath.WalkDir(path, func(filePath string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if !d.IsDir() {
+				return BackupFile(filePath, backupFolder)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		return BackupFile(path, backupFolder)
+	}
+
+	return nil
+}
 
 func BackupFile(filePath, backupFolder string) error {
 
-	// Abrir el archivo original para leer los datos
+	// Abrir archivo
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	// Obtener información del archivo original
+	// Obtener información
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return err
 	}
 
-	// Calcular el número total de fragmentos necesarios
+	// Calcular fragmentos necesarios
 	numFragments := int(math.Ceil(float64(fileInfo.Size()) / float64(fragmentSize)))
 
 	// Crear un slice para almacenar los fragmentos
 	fragments := make([]string, numFragments)
 
-	// Leer y guardar cada fragmento
+	// Leer y guardar fragmentos
 	for i := 0; i < numFragments; i++ {
-		// Definir el nombre del fragmento
-		fragmentName := fmt.Sprintf("%s-%d", fileInfo.Name(), i)
 
-		// Crear el archivo del fragmento
+		fragmentName := fmt.Sprintf("%s-arrempujala-%d", fileInfo.Name(), i)
 		fragmentPath := filepath.Join(backupFolder, fragmentName)
 		fragmentFile, err := os.Create(fragmentPath)
 		if err != nil {
@@ -46,14 +73,14 @@ func BackupFile(filePath, backupFolder string) error {
 		}
 		defer fragmentFile.Close()
 
-		// Leer los datos del fragmento
+		// Leer datos del fragmento
 		buffer := make([]byte, fragmentSize)
 		bytesRead, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
 			return err
 		}
 
-		// Guardar el fragmento
+		// Guardar fragmento
 		_, err = fragmentFile.Write(buffer[:bytesRead])
 		if err != nil {
 			return err
@@ -63,7 +90,7 @@ func BackupFile(filePath, backupFolder string) error {
 		fragments[i] = fragmentName
 	}
 
-	// Leer el archivo JSON existente (si existe)
+	// Leer el archivo JSON existente
 	existingBackupInfo := make(map[string]interface{})
 	backupInfoFile, err := os.Open(filepath.Join(backupFolder, "backup_info.json"))
 	if err == nil {
@@ -75,7 +102,7 @@ func BackupFile(filePath, backupFolder string) error {
 		}
 	}
 
-	// Agregar la información de la nueva copia de seguridad
+	// Agregar información copia de seguridad
 	newBackupInfo := map[string]interface{}{
 		"file":        fileInfo.Name(),
 		"size":        fileInfo.Size(),
